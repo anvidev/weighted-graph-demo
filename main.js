@@ -22,12 +22,12 @@ class WeightedGraph {
 
   /**
    * Function addNode adds a new node to the graph and initializes a new map for its edges
-   * @param {string} ID - unique identifier of new node
-   * @param {NodeMetadata} [metadata={}] - metadata of new node
+   * @param {string} key - unique identifier of new node
+   * @param {NodeMetadata} - metadata of new node
    */
-  addNode(ID, metadata) {
-    this.nodes.set(ID, metadata);
-    this.edges.set(ID, new Map());
+  addNode(key, metadata) {
+    this.nodes.set(key, metadata);
+    this.edges.set(key, new Map());
   }
 
   /**
@@ -38,11 +38,7 @@ class WeightedGraph {
    * @throws {Error} if either node does not exist
    */
   addEdge(start, end, weight) {
-    if (!this.#nodeExist(start) || !this.#nodeExist(end)) {
-      throw new Error(
-        "Both nodes must exist before adding an edge between them",
-      );
-    }
+    if (!this.#nodeExist(start) || !this.#nodeExist(end)) return;
     this.edges.get(start).set(end, weight);
     this.edges.get(end).set(start, weight);
   }
@@ -55,9 +51,7 @@ class WeightedGraph {
    * @return {string[]} an array describing the cheapest path bewteen two nodes
    */
   findCheapestPath(start, end) {
-    if (!this.#nodeExist(start) || !this.#nodeExist(end)) {
-      throw new Error("Both nodes must exist before finding cheapest path");
-    }
+    if (!this.#nodeExist(start) || !this.#nodeExist(end)) return;
 
     const previous = new Map();
     const unvisited = new Set(this.nodes.keys());
@@ -91,20 +85,27 @@ class WeightedGraph {
 
   /**
    * Function deleteNode deletes a node by ID and its connecting edges
-   * @param {string} ID - identifier of node
+   * @param {string} key - identifier of node
    */
-  deleteNode(ID) {
-    this.nodes.delete(ID);
-    this.edges.delete(ID);
+  deleteNode(key) {
+    if (!this.#nodeExist(key)) return;
+
+    if (this.edges.has(key)) {
+      this.edges
+        .get(key)
+        .forEach((_, neighbor) => this.edges.get(neighbor)?.delete(key));
+      this.edges.delete(key);
+    }
+    this.nodes.delete(key);
   }
 
   /**
    * Function verifyNodeExistence checks a given node exists in the graph
-   * @param {string} ID - identifier of node
+   * @param {string} key - identifier of node
    * @returns {boolean} indicates whether a node exists or not
    */
-  #nodeExist(ID) {
-    return this.nodes.has(ID);
+  #nodeExist(key) {
+    return this.nodes.has(key);
   }
 }
 
@@ -118,8 +119,11 @@ const canvas = document.getElementById("graph");
 const ctx = canvas.getContext("2d");
 
 let hoveredCell = null;
+let shortestPath = null;
 const selectedNodes = new Set();
-const gridSize = 20;
+let zoom = 1;
+let gridSize = 20;
+let cheapestPath = [];
 
 /**
  * Function resizeCanvas resizes the canvas to fill the entire window and redraws the grid
@@ -155,40 +159,98 @@ function drawGrid() {
     ctx.stroke();
   }
 
+  const drawnEdges = new Set();
+  g.edges.forEach((edges, node) => {
+    const curNode = g.nodes.get(node);
+    edges.forEach((weight, neighbor) => {
+      const edgeKey1 = `${node}-${neighbor}`;
+      const edgeKey2 = `${neighbor}-${node}`;
+
+      if (!drawnEdges.has(edgeKey1) && !drawnEdges.has(edgeKey2)) {
+        const nnode = g.nodes.get(neighbor);
+
+        if (cheapestPath.includes(node) && cheapestPath.includes(neighbor)) {
+          ctx.strokeStyle = "#5050ff";
+        } else {
+          ctx.strokeStyle = "#000";
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(
+          curNode.x * gridSize + gridSize / 2,
+          curNode.y * gridSize + gridSize / 2,
+        );
+        ctx.lineTo(
+          nnode.x * gridSize + gridSize / 2,
+          nnode.y * gridSize + gridSize / 2,
+        );
+        ctx.stroke();
+        ctx.fillStyle = "rgba(0, 0, 0, 1)";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const midX = ((curNode.x + nnode.x) / 2) * gridSize + gridSize / 2 - 10;
+        const midY = ((curNode.y + nnode.y) / 2) * gridSize + gridSize / 2 - 15;
+        ctx.fillText(weight, midX, midY);
+        drawnEdges.add(edgeKey1);
+        drawnEdges.add(edgeKey2);
+      }
+    });
+  });
+
   if (hoveredCell) {
     const { x, y } = hoveredCell;
-    ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
     ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
   }
 
-  selectedNodes.forEach((ID) => {
-    const node = g.nodes.get(ID);
-    ctx.fillStyle = "rgba(60, 179, 133, 0.5)";
+  selectedNodes.forEach((key) => {
+    const node = g.nodes.get(key);
+    ctx.fillStyle = "rgba(255, 80, 255, 1)";
     ctx.fillRect(node.x * gridSize, node.y * gridSize, gridSize, gridSize);
+    ctx.fillStyle = "rgba(0, 0, 0, 1)";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(key, node.x * gridSize, node.y * gridSize - 6);
   });
 
   g.nodes.forEach((cell, key) => {
     if (!selectedNodes.has(key)) {
-      const { x, y } = cell;
-      ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-      ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
-    }
-  });
+      const { x, y, isReadyForPickup } = cell;
 
-  g.edges.forEach((edges, node) => {
-    const curNode = g.nodes.get(node);
-    edges.forEach((_, neighbor) => {
-      const nnode = g.nodes.get(neighbor);
-      ctx.beginPath();
-      ctx.moveTo(curNode.x, curNode.y);
-      ctx.lineTo(nnode.x, nnode.y);
-      ctx.stroke();
-    });
+      if (cheapestPath.includes(key)) {
+        ctx.fillStyle = "rgba(80, 80, 255, 1)";
+      } else {
+        ctx.fillStyle = "rgba(255, 80, 80, 1)";
+      }
+
+      ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+      ctx.fillStyle = "rgba(0, 0, 0, 1)";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(key, x * gridSize, y * gridSize - 6);
+
+      if (isReadyForPickup) {
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(80, 255, 80, 1)";
+        ctx.arc(
+          x * gridSize + gridSize / 2,
+          y * gridSize + gridSize / 2,
+          gridSize / 4,
+          0,
+          2 * Math.PI,
+        );
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
   });
 }
 
 /**
- * Converts mouse coordinates to grid cell coordinates.
+ * Function getCellFromMouse converts mouse coordinates to grid cell coordinates.
  * @param {number} mouseX - the mouse X position.
  * @param {number} mouseY - the mouse Y position.
  * @returns {Object} - the grid cell coordinates { x, y }.
@@ -246,7 +308,8 @@ function handleMouseClick(event) {
  * Function handleKeyUpEvent handles the keyboard event when a keymap is pressed
  *
  * available keymaps:
- * "esc" - Clear graph
+ * "X" - clear graph
+ * "esc" - clear selection
  * "d" - delete selected nodes
  * "e" - draw an edge between two nodes
  * @param {KeyboardEvent} event - the keyboard event
@@ -256,10 +319,13 @@ function handleKeyUpEvent(event) {
 
   console.log(key);
   switch (key) {
-    case "Escape":
+    case "X":
       g.nodes.clear();
       g.edges.clear();
-      selectedNodes.clear();
+      break;
+    case "Escape":
+      cheapestPath = [];
+      break;
     case "d":
       selectedNodes.forEach((ID) => {
         if (g.nodes.has(ID)) {
@@ -267,16 +333,43 @@ function handleKeyUpEvent(event) {
           selectedNodes.delete(ID);
         }
       });
+      break;
     case "e":
       if (selectedNodes.size != 2) {
         alert("Only two selected nodes allowed when drawing edges");
         return;
       }
-      const [n1, n2] = Array.from(selectedNodes);
-      g.addEdge(n1, n2);
+      const [start, end] = Array.from(selectedNodes);
+      const startNode = g.nodes.get(start);
+      const endNode = g.nodes.get(end);
+      const weight = calculateWeight(startNode, endNode);
+
+      g.addEdge(start, end, weight);
+      break;
+    case "p":
+      if (selectedNodes.size != 2) {
+        alert("Only two selected nodes allowed when finding cheapest path");
+        return;
+      }
+      const [startC, endC] = Array.from(selectedNodes);
+      cheapestPath = g.findCheapestPath(startC, endC);
+      break;
   }
 
+  selectedNodes.clear();
   drawGrid();
+}
+
+/**
+ * Function calculateWeight calculates the weight of an edge using pythagoras formula and floors the result
+ * @param {NodeMetadata} start - metadata of starting node
+ * @param {NodeMetadata} end - metadata of ending node
+ * @returns {number} weight of edge
+ */
+function calculateWeight(start, end) {
+  const a = Math.abs(start.x - end.x);
+  const b = Math.abs(start.y - end.y);
+  return Math.floor(Math.sqrt(a * a + b * b));
 }
 
 window.addEventListener("resize", resizeCanvas);
