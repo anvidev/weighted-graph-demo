@@ -297,7 +297,7 @@ function handleMouseClick(event) {
     g.addNode(cellKey, {
       x: cell.x,
       y: cell.y,
-      isReadyForPickup: true,
+      isReadyForPickup: Math.random() > 0.5 ? true : false,
     });
   }
 
