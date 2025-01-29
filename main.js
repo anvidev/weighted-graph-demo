@@ -84,7 +84,54 @@ class WeightedGraph {
   }
 
   /**
-   * Function deleteNode deletes a node by ID and its connecting edges
+   * Function findClosestNReady traverses the graph and finds the n amount of nodes closest to the starting node
+   * that are ready for pickup
+   * @param {string} start - identifier of start node
+   * @param {number} [n=5] - amount of nodes to find
+   * @returns {string[]} array of keys for closest nodes
+   */
+  findClosestNReady(start, n = 5) {
+    if (!this.#nodeExist(start)) return;
+
+    const unvisited = new Set(this.nodes.keys());
+    const distances = new Map([...this.nodes].map(([key]) => [key, Infinity]));
+    distances.set(start, 0);
+
+    while (unvisited.size > 0) {
+      const curNode = Array.from(unvisited).reduce((minNode, node) =>
+        distances.get(node) < distances.get(minNode) ? node : minNode,
+      );
+      this.edges.get(curNode).forEach((weight, neighbor) => {
+        if (unvisited.has(neighbor)) {
+          const newDistance = distances.get(curNode) + weight;
+          if (distances.get(neighbor) > newDistance) {
+            distances.set(neighbor, newDistance);
+          }
+        }
+      });
+      unvisited.delete(curNode);
+    }
+
+    const readyNodes = Array.from(this.nodes)
+      .filter(([_, metadata]) => metadata.isReadyForPickup)
+      .sort((a, b) => distances.get(a[0]) - distances.get(b[0]));
+
+    return readyNodes.slice(0, n).map(([key]) => key);
+  }
+
+  /**
+   * Function deleteEdge deletes an edge between the starting node and the ending node
+   * @param {string} start - identifier for start node
+   * @param {string} end - identifier for end node
+   */
+  deleteEdge(start, end) {
+    if (!this.#nodeExist(start) || !this.#nodeExist(end)) return;
+    this.edges.get(start).delete(end);
+    this.edges.get(end).delete(start);
+  }
+
+  /**
+   * Function deleteNode deletes a node by key and its connecting edges
    * @param {string} key - identifier of node
    */
   deleteNode(key) {
@@ -212,7 +259,7 @@ function drawGrid() {
     ctx.font = "12px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(key, node.x * gridSize, node.y * gridSize - 6);
+    ctx.fillText(key, node.x * gridSize + gridSize / 2, node.y * gridSize - 6);
   });
 
   g.nodes.forEach((cell, key) => {
@@ -230,7 +277,7 @@ function drawGrid() {
       ctx.font = "12px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(key, x * gridSize, y * gridSize - 6);
+      ctx.fillText(key, x * gridSize + gridSize / 2, y * gridSize - 6);
 
       if (isReadyForPickup) {
         ctx.beginPath();
@@ -334,6 +381,14 @@ function handleKeyUpEvent(event) {
         }
       });
       break;
+    case "D":
+      if (selectedNodes.size != 2) {
+        alert("Only two selected nodes allowed when deleting edges");
+        return;
+      }
+      const [startD, endD] = Array.from(selectedNodes);
+      g.deleteEdge(startD, endD);
+      break;
     case "e":
       if (selectedNodes.size != 2) {
         alert("Only two selected nodes allowed when drawing edges");
@@ -351,8 +406,17 @@ function handleKeyUpEvent(event) {
         alert("Only two selected nodes allowed when finding cheapest path");
         return;
       }
-      const [startC, endC] = Array.from(selectedNodes);
-      cheapestPath = g.findCheapestPath(startC, endC);
+      const [startP, endP] = Array.from(selectedNodes);
+      cheapestPath = g.findCheapestPath(startP, endP);
+      break;
+    case "c":
+      if (selectedNodes.size != 1) {
+        alert("Only one node must be selected when finding closest node");
+        return;
+      }
+      const [startC] = Array.from(selectedNodes);
+      const closest = g.findClosestNReady(startC, 3);
+      console.log(closest);
       break;
   }
 
