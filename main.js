@@ -147,6 +147,16 @@ class WeightedGraph {
   }
 
   /**
+   * Function updateNode takes the new metadata and updates a node by key
+   * @param {string} key - identifier of node
+   * @param {Partial<NodeMetadata>} metadata
+   */
+  updateNode(key, metadata) {
+    const old = this.nodes.get(key);
+    this.nodes.set(key, { ...old, ...metadata });
+  }
+
+  /**
    * Function verifyNodeExistence checks a given node exists in the graph
    * @param {string} key - identifier of node
    * @returns {boolean} indicates whether a node exists or not
@@ -168,9 +178,9 @@ const ctx = canvas.getContext("2d");
 let hoveredCell = null;
 let shortestPath = null;
 const selectedNodes = new Set();
-let zoom = 1;
 let gridSize = 20;
 let cheapestPath = [];
+let closest = [];
 
 /**
  * Function resizeCanvas resizes the canvas to fill the entire window and redraws the grid
@@ -272,6 +282,12 @@ function drawGrid() {
         ctx.fillStyle = "rgba(255, 80, 80, 1)";
       }
 
+      if (closest.includes(key)) {
+        ctx.fillStyle = "rgba(80, 80, 255, 1)";
+      } else {
+        ctx.fillStyle = "rgba(255, 80, 80, 1)";
+      }
+
       ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
       ctx.fillStyle = "rgba(0, 0, 0, 1)";
       ctx.font = "12px sans-serif";
@@ -344,7 +360,7 @@ function handleMouseClick(event) {
     g.addNode(cellKey, {
       x: cell.x,
       y: cell.y,
-      isReadyForPickup: Math.random() > 0.5 ? true : false,
+      isReadyForPickup: false,
     });
   }
 
@@ -359,10 +375,13 @@ function handleMouseClick(event) {
  * "esc" - clear selection
  * "d" - delete selected nodes
  * "e" - draw an edge between two nodes
+ * "p" - find the cheapest path between two selected nodes
+ * "k" - toggle a node's ready state
  * @param {KeyboardEvent} event - the keyboard event
  */
 function handleKeyUpEvent(event) {
   const { key } = event;
+  const selected = Array.from(selectedNodes);
 
   console.log(key);
   switch (key) {
@@ -372,6 +391,7 @@ function handleKeyUpEvent(event) {
       break;
     case "Escape":
       cheapestPath = [];
+      closest = [];
       break;
     case "d":
       selectedNodes.forEach((ID) => {
@@ -386,37 +406,42 @@ function handleKeyUpEvent(event) {
         alert("Only two selected nodes allowed when deleting edges");
         return;
       }
-      const [startD, endD] = Array.from(selectedNodes);
-      g.deleteEdge(startD, endD);
+      g.deleteEdge(selected[0], selected[1]);
       break;
     case "e":
       if (selectedNodes.size != 2) {
         alert("Only two selected nodes allowed when drawing edges");
         return;
       }
-      const [start, end] = Array.from(selectedNodes);
-      const startNode = g.nodes.get(start);
-      const endNode = g.nodes.get(end);
+      const startNode = g.nodes.get(selected[0]);
+      const endNode = g.nodes.get(selected[1]);
       const weight = calculateWeight(startNode, endNode);
 
-      g.addEdge(start, end, weight);
+      g.addEdge(selected[0], selected[1], weight);
       break;
     case "p":
       if (selectedNodes.size != 2) {
         alert("Only two selected nodes allowed when finding cheapest path");
         return;
       }
-      const [startP, endP] = Array.from(selectedNodes);
-      cheapestPath = g.findCheapestPath(startP, endP);
+      cheapestPath = g.findCheapestPath(selected[0], selected[1]);
       break;
     case "c":
       if (selectedNodes.size != 1) {
         alert("Only one node must be selected when finding closest node");
         return;
       }
-      const [startC] = Array.from(selectedNodes);
-      const closest = g.findClosestNReady(startC, 3);
-      console.log(closest);
+      closest = g.findClosestNReady(selected[0], 3);
+      break;
+    case "k":
+      if (selectedNodes.size != 1) {
+        alert(
+          "Only one node must be selected when updating ready state of node",
+        );
+        return;
+      }
+      const node = g.nodes.get(selected[0]);
+      g.updateNode(selected[0], { isReadyForPickup: !node.isReadyForPickup });
       break;
   }
 
