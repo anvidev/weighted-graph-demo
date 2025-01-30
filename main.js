@@ -1,8 +1,8 @@
 /**
  * @typedef NodeMetadata
  * @property {boolean} isReadyForPickup - describes if a node has a car ready for pick up
- * @property {number} x - x coordinate of node
- * @property {number} y - y coordinate of node
+ * @property {number} x - x grid coordinate of node
+ * @property {number} y - y grid coordinate of node
  */
 
 /**
@@ -44,7 +44,7 @@ class WeightedGraph {
   }
 
   /**
-   * Function findShortestPath finds the cheapest path between two nodes
+   * Function findShortestPath finds the cheapest path between two nodes using Dijkstra's algorithm
    * @param {string} start - identifier of start node
    * @param {string} end - identifier of end node
    * @throws {Error} if either node does not exist
@@ -85,7 +85,7 @@ class WeightedGraph {
 
   /**
    * Function findClosestNReady traverses the graph and finds the n amount of nodes closest to the starting node
-   * that are ready for pickup
+   * that are ready for pickup using Dijkstra's algorithm
    * @param {string} start - identifier of start node
    * @param {number} [n=5] - amount of nodes to find
    * @returns {string[]} array of keys for closest nodes
