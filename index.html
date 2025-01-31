@@ -68,6 +68,8 @@
           </div>
         </div>
       </details>
+      <button id="save">Save</button>
+      <button id="load">Load</button>
 		<canvas id="graph"></canvas>
 	</main>
 
@@ -183,6 +185,40 @@
 			background-color: #f4f4f4;
 			display: block;
 		}
+
+    #save {
+			position: absolute;
+      user-select: none; 
+			top: 12px;
+			left: 216px;
+			background-color: white;
+			padding: 6px 12px;
+			border: 1px solid black;
+			border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+
+      &:hover {
+        background-color: lightgray;
+      }
+    }
+
+    #load {
+			position: absolute;
+      user-select: none; 
+			top: 12px;
+			left: 287px;
+			background-color: white;
+			padding: 6px 12px;
+			border: 1px solid black;
+			border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+
+      &:hover {
+        background-color: lightgray;
+      }
+    }
 	</style>
 </body>
 

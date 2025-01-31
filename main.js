@@ -157,7 +157,48 @@ class WeightedGraph {
   }
 
   /**
-   * Function verifyNodeExistence checks a given node exists in the graph
+   * Function toJSON stringifies the graph data
+   * @returns {string} stringified graph data
+   */
+  toJSON() {
+    const nodes = Array.from(this.nodes.entries());
+    const edges = Array.from(this.edges.entries()).map(([key, value]) => [
+      key,
+      Array.from(value.entries()),
+    ]);
+    return JSON.stringify({ nodes, edges });
+  }
+
+  /**
+   * Function fromJSON takes a string as input and parses it as json and attempts to insert it into the weighted graph
+   * @param {string} str - data from localstorage
+   */
+  fromJSON(str) {
+    try {
+      const data = JSON.parse(str);
+      if (!data.nodes || !Array.isArray(data.nodes))
+        throw new Error("invalid nodes data");
+      if (!data.edges || !Array.isArray(data.edges))
+        throw new Error("invalid edges data");
+
+      this.nodes.clear();
+      this.edges.clear();
+
+      data.nodes.forEach(([key, metadata]) => {
+        this.addNode(key, metadata);
+      });
+
+      data.edges.forEach(([key, edges]) => {
+        const edgeMap = new Map(edges);
+        this.edges.set(key, edgeMap);
+      });
+    } catch (e) {
+      console.error("error parsing graph JSON:", e);
+    }
+  }
+
+  /**
+   * Function nodeExist checks if a given node exists in the graph
    * @param {string} key - identifier of node
    * @returns {boolean} indicates whether a node exists or not
    */
@@ -169,6 +210,8 @@ class WeightedGraph {
 const g = new WeightedGraph();
 
 const canvas = document.getElementById("graph");
+const savebtn = document.getElementById("save");
+const loadbtn = document.getElementById("load");
 
 /**
  * @type {CanvasRenderingContext2D}
@@ -461,8 +504,29 @@ function calculateWeight(start, end) {
   return Math.floor(Math.sqrt(a * a + b * b));
 }
 
+/**
+ * Function handleSave handles stringifying graph data and saves it to localstorage
+ * @param {MouseEvent} event - the mouse event
+ */
+function handleSave(_) {
+  const data = g.toJSON();
+  window.localStorage.setItem("graph", data);
+}
+
+/**
+ * Function handleLoad handles parsing graph data from localstorage and tries to insert into the graph
+ * @param {MouseEvent} event - the mouse event
+ */
+function handleLoad(_) {
+  const data = window.localStorage.getItem("graph");
+  if (!data) alert("No data found");
+  g.fromJSON(data);
+}
+
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("keyup", handleKeyUpEvent);
 canvas.addEventListener("mousemove", handleMouseMove);
 canvas.addEventListener("click", handleMouseClick);
+savebtn.addEventListener("click", handleSave);
+loadbtn.addEventListener("click", handleLoad);
 resizeCanvas();
