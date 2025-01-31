@@ -519,7 +519,7 @@ function handleSave(_) {
  */
 function handleLoad(_) {
   const data = window.localStorage.getItem("graph");
-  if (!data) alert("No data found");
+  if (!data) alert("no data found");
   g.fromJSON(data);
 }
 
